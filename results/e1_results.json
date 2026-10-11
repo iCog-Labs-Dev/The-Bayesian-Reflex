@@ -1,0 +1,252 @@
+{
+  "scope": "scalar Gaussian inference module under the specified generative model; does not test the reflex loop",
+  "config": {
+    "mu0": 0.0,
+    "s0": 1.0,
+    "sy": 0.5,
+    "N": 1000,
+    "T": 50,
+    "L": 99,
+    "cps": [
+      1,
+      5,
+      10,
+      25,
+      50
+    ],
+    "levels": [
+      0.5,
+      0.8,
+      0.95
+    ],
+    "bins": 10,
+    "sy_wrong": 0.25
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "checks": [
+    {
+      "name": "closed-form posterior sd max err",
+      "value": 2.7755575615628914e-17,
+      "criterion": "<1e-12",
+      "passed": true
+    },
+    {
+      "name": "coverage50 t=1",
+      "value": 0.5003,
+      "criterion": "|v-0.5|<=0.0150",
+      "passed": true
+    },
+    {
+      "name": "coverage80 t=1",
+      "value": 0.8041,
+      "criterion": "|v-0.8|<=0.0120",
+      "passed": true
+    },
+    {
+      "name": "coverage95 t=1",
+      "value": 0.9533,
+      "criterion": "|v-0.95|<=0.0065",
+      "passed": true
+    },
+    {
+      "name": "KS p t=1",
+      "value": 0.6679282980454293,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "chi2 rank p t=1",
+      "value": 0.649403486992465,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "RMSE/sd t=1",
+      "value": 0.986425293982819,
+      "criterion": "within 3% of 1",
+      "passed": true
+    },
+    {
+      "name": "coverage50 t=5",
+      "value": 0.5013,
+      "criterion": "|v-0.5|<=0.0150",
+      "passed": true
+    },
+    {
+      "name": "coverage80 t=5",
+      "value": 0.7982,
+      "criterion": "|v-0.8|<=0.0120",
+      "passed": true
+    },
+    {
+      "name": "coverage95 t=5",
+      "value": 0.9497,
+      "criterion": "|v-0.95|<=0.0065",
+      "passed": true
+    },
+    {
+      "name": "KS p t=5",
+      "value": 0.8355123764923671,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "chi2 rank p t=5",
+      "value": 0.8362218209261039,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "RMSE/sd t=5",
+      "value": 1.0040444758342209,
+      "criterion": "within 3% of 1",
+      "passed": true
+    },
+    {
+      "name": "coverage50 t=10",
+      "value": 0.5138,
+      "criterion": "|v-0.5|<=0.0150",
+      "passed": true
+    },
+    {
+      "name": "coverage80 t=10",
+      "value": 0.8057,
+      "criterion": "|v-0.8|<=0.0120",
+      "passed": true
+    },
+    {
+      "name": "coverage95 t=10",
+      "value": 0.9517,
+      "criterion": "|v-0.95|<=0.0065",
+      "passed": true
+    },
+    {
+      "name": "KS p t=10",
+      "value": 0.2300809707196586,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "chi2 rank p t=10",
+      "value": 0.41560124143778565,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "RMSE/sd t=10",
+      "value": 0.9853057630025531,
+      "criterion": "within 3% of 1",
+      "passed": true
+    },
+    {
+      "name": "coverage50 t=25",
+      "value": 0.5031,
+      "criterion": "|v-0.5|<=0.0150",
+      "passed": true
+    },
+    {
+      "name": "coverage80 t=25",
+      "value": 0.7991,
+      "criterion": "|v-0.8|<=0.0120",
+      "passed": true
+    },
+    {
+      "name": "coverage95 t=25",
+      "value": 0.9501,
+      "criterion": "|v-0.95|<=0.0065",
+      "passed": true
+    },
+    {
+      "name": "KS p t=25",
+      "value": 0.736119577062608,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "chi2 rank p t=25",
+      "value": 0.0881186022873351,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "RMSE/sd t=25",
+      "value": 1.0015243330777748,
+      "criterion": "within 3% of 1",
+      "passed": true
+    },
+    {
+      "name": "coverage50 t=50",
+      "value": 0.494,
+      "criterion": "|v-0.5|<=0.0150",
+      "passed": true
+    },
+    {
+      "name": "coverage80 t=50",
+      "value": 0.7894,
+      "criterion": "|v-0.8|<=0.0120",
+      "passed": true
+    },
+    {
+      "name": "coverage95 t=50",
+      "value": 0.9506,
+      "criterion": "|v-0.95|<=0.0065",
+      "passed": true
+    },
+    {
+      "name": "KS p t=50",
+      "value": 0.19141232036934197,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "chi2 rank p t=50",
+      "value": 0.07474450722422897,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "RMSE/sd t=50",
+      "value": 1.0092748664329223,
+      "criterion": "within 3% of 1",
+      "passed": true
+    },
+    {
+      "name": "CONTROL cov95 t=50 (wrong sy)",
+      "value": 0.6637,
+      "criterion": "<0.90 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "CONTROL KS p t=50 (wrong sy)",
+      "value": 2.7956676570368046e-250,
+      "criterion": "<0.001 (must fail)",
+      "passed": true
+    }
+  ],
+  "overall_pass": true,
+  "prior_mismatch": {
+    "0.0": {
+      "t_bias_lt_0p1": 5,
+      "cov95_t1": 0.886,
+      "cov95_t10": 0.962,
+      "cov95_t50": 0.958
+    },
+    "10.0": {
+      "t_bias_lt_0p1": 21,
+      "cov95_t1": 0.032,
+      "cov95_t10": 0.746,
+      "cov95_t50": 0.934
+    }
+  }
+}

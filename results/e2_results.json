@@ -1,0 +1,115 @@
+{
+  "scope": "scalar Gaussian sequential updating vs batch oracle (longdouble)",
+  "overall_pass": true,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "n_problems_T100": 1000,
+  "n_problems_T1e5": 200,
+  "aggregation": "worst case (max error) over seeds and problems; control uses the minimum over seeds",
+  "checks": [
+    {
+      "name": "T=100 max|dmu|",
+      "value": 2.1844505371237943e-14,
+      "criterion": "<1e-6",
+      "passed": true
+    },
+    {
+      "name": "T=100 max|dvar|",
+      "value": 5.30825383648903e-16,
+      "criterion": "<1e-6",
+      "passed": true
+    },
+    {
+      "name": "T=100 max KL",
+      "value": 2.3467828866185985e-25,
+      "criterion": "<1e-12",
+      "passed": true
+    },
+    {
+      "name": "permutation |dmu| (final)",
+      "value": 7.993605777301127e-15,
+      "criterion": "<1e-10",
+      "passed": true
+    },
+    {
+      "name": "CONTROL mean|dmu| (dropped data)",
+      "value": 0.023169984467783573,
+      "criterion": ">1e-3 (must differ)",
+      "passed": true
+    },
+    {
+      "name": "T=1e5 finite values",
+      "value": 1.0,
+      "criterion": "True",
+      "passed": true
+    },
+    {
+      "name": "T=1e5 max|dmu|",
+      "value": 2.504647704515417e-11,
+      "criterion": "<1e-6",
+      "passed": true
+    },
+    {
+      "name": "T=1e5 max rel dvar",
+      "value": 2.674531273505586e-12,
+      "criterion": "<1e-6",
+      "passed": true
+    },
+    {
+      "name": "T=1e5 max KL",
+      "value": 1.3887479295897365e-16,
+      "criterion": "<1e-12",
+      "passed": true
+    }
+  ],
+  "diagnostics": {
+    "max_rel_dvar_T100": 3.378767575117883e-15,
+    "dmu_growth_loglog_slope_T1e5": 1.243840330437166,
+    "per_seed_max_dmu_T100": {
+      "0": 1.697340185069507e-14,
+      "1": 1.3986208025063007e-14,
+      "2": 1.439213331844158e-14,
+      "3": 1.3420254491025574e-14,
+      "4": 2.1844505371237943e-14,
+      "5": 1.2193371312640977e-14,
+      "6": 1.6705820754525647e-14,
+      "7": 1.1715021314140373e-14,
+      "8": 1.447670108789545e-14,
+      "9": 1.6791255885717504e-14
+    },
+    "per_seed_max_dmu_T1e5": {
+      "0": 9.407895903285057e-12,
+      "1": 2.504647704515417e-11,
+      "2": 1.2566214561970934e-11,
+      "3": 8.90016662799531e-12,
+      "4": 3.975884725615497e-12,
+      "5": 7.005648448507595e-12,
+      "6": 8.0297977468613e-12,
+      "7": 1.2828929758790242e-11,
+      "8": 5.474595603238708e-12,
+      "9": 1.3622288193293475e-11
+    },
+    "per_seed_control_mean_dmu": {
+      "0": 0.028588054255786966,
+      "1": 0.023430086053532483,
+      "2": 0.023169984467783573,
+      "3": 0.028079893724073445,
+      "4": 0.031202414090298038,
+      "5": 0.025631949243259865,
+      "6": 0.026119146990108262,
+      "7": 0.0241253136633889,
+      "8": 0.02816715144755193,
+      "9": 0.025631351786540687
+    }
+  }
+}

@@ -1,0 +1,268 @@
+{
+  "scope": "scalar Gaussian one-step-ahead prediction errors standardized by the Bayesian predictive; does not establish that a PC layer performs or drives learning",
+  "scope_by_part": {
+    "gaussian": "shared framework: ScalarGaussianBelief + PredictiveCodingLayer (standardized, raw and precision-weighted error)",
+    "nig_student_t": "standalone closed-form NIG/Student-t check; does not call the shared framework classes"
+  },
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "overall_pass": true,
+  "checks": [
+    {
+      "name": "sy=0.1 mean z",
+      "value": 0.0028307864089093717,
+      "criterion": "|v|<0.0042",
+      "passed": true
+    },
+    {
+      "name": "sy=0.1 var z",
+      "value": 0.9968866260667293,
+      "criterion": "|v-1|<0.0060",
+      "passed": true
+    },
+    {
+      "name": "sy=0.1 lag-1 autocorr",
+      "value": -0.0037172982395160398,
+      "criterion": "|v|<0.0042",
+      "passed": true
+    },
+    {
+      "name": "sy=0.1 KS p t=1",
+      "value": 0.07457283675734483,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "sy=0.1 KS p t=5",
+      "value": 0.1934280671577311,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "sy=0.1 KS p t=25",
+      "value": 0.22288994853768218,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "sy=0.1 KS p t=50",
+      "value": 0.049513311112099556,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "sy=0.1 Kalman identity max err",
+      "value": 8.881784197001252e-16,
+      "criterion": "<1e-12",
+      "passed": true
+    },
+    {
+      "name": "CONTROL sy=0.1 wrong sy: var z",
+      "value": 3.9281465011810184,
+      "criterion": "|v-1|>0.1 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "CONTROL sy=0.1 stale var: var z t<=5",
+      "value": 10.964218431377072,
+      "criterion": "|v-1|>0.05 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "CONTROL sy=0.1 stale var: KS p t=1",
+      "value": 0.0,
+      "criterion": "<0.001 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "sy=0.1 pw*sqrt(v) == z max err",
+      "value": 1.7763568394002505e-15,
+      "criterion": "<1e-12",
+      "passed": true
+    },
+    {
+      "name": "sy=0.1 Var(pw)*v_pred t=1",
+      "value": 0.9902724506432593,
+      "criterion": "|v-1|<0.0424",
+      "passed": true
+    },
+    {
+      "name": "sy=0.1 Var(pw)*v_pred t=50",
+      "value": 0.9876697056156641,
+      "criterion": "|v-1|<0.0424",
+      "passed": true
+    },
+    {
+      "name": "sy=0.1 update = mu + s2_prev*pw max err",
+      "value": 8.881784197001252e-16,
+      "criterion": "<1e-12",
+      "passed": true
+    },
+    {
+      "name": "CONTROL sy=0.1 update with raw error",
+      "value": 0.2565832449972393,
+      "criterion": ">1e-3 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "CONTROL sy=0.1 pw is not unit variance",
+      "value": 95.79202613921953,
+      "criterion": "max_t|Var(pw)-1|>0.1 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "sy=1.0 mean z",
+      "value": 0.0012738819588306361,
+      "criterion": "|v|<0.0042",
+      "passed": true
+    },
+    {
+      "name": "sy=1.0 var z",
+      "value": 0.9969413849215761,
+      "criterion": "|v-1|<0.0060",
+      "passed": true
+    },
+    {
+      "name": "sy=1.0 lag-1 autocorr",
+      "value": -0.003669340419520693,
+      "criterion": "|v|<0.0042",
+      "passed": true
+    },
+    {
+      "name": "sy=1.0 KS p t=1",
+      "value": 0.019380943291567303,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "sy=1.0 KS p t=5",
+      "value": 0.37898104727143145,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "sy=1.0 KS p t=25",
+      "value": 0.30354226378883986,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "sy=1.0 KS p t=50",
+      "value": 0.09501314197660293,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "sy=1.0 Kalman identity max err",
+      "value": 8.881784197001252e-16,
+      "criterion": "<1e-12",
+      "passed": true
+    },
+    {
+      "name": "CONTROL sy=1.0 wrong sy: var z",
+      "value": 3.928500812604062,
+      "criterion": "|v-1|>0.1 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "CONTROL sy=1.0 stale var: var z t<=5",
+      "value": 1.116630329805682,
+      "criterion": "|v-1|>0.05 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "CONTROL sy=1.0 stale var: KS p t=1",
+      "value": 6.0796455347842585e-15,
+      "criterion": "<0.001 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "sy=1.0 pw*sqrt(v) == z max err",
+      "value": 1.3322676295501878e-15,
+      "criterion": "<1e-12",
+      "passed": true
+    },
+    {
+      "name": "sy=1.0 Var(pw)*v_pred t=1",
+      "value": 0.987646177140595,
+      "criterion": "|v-1|<0.0424",
+      "passed": true
+    },
+    {
+      "name": "sy=1.0 Var(pw)*v_pred t=50",
+      "value": 0.9882098734209298,
+      "criterion": "|v-1|<0.0424",
+      "passed": true
+    },
+    {
+      "name": "sy=1.0 update = mu + s2_prev*pw max err",
+      "value": 8.881784197001252e-16,
+      "criterion": "<1e-12",
+      "passed": true
+    },
+    {
+      "name": "CONTROL sy=1.0 update with raw error",
+      "value": 2.663988212463381,
+      "criterion": ">1e-3 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "CONTROL sy=1.0 pw is not unit variance",
+      "value": 0.5061769114297026,
+      "criterion": "max_t|Var(pw)-1|>0.1 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "precision wt: raw err std ratio (1.0/0.1)",
+      "value": 10.000753841757078,
+      "criterion": ">5 (raw follows sy)",
+      "passed": true
+    },
+    {
+      "name": "precision wt: z std ratio (1.0/0.1)",
+      "value": 1.0000274645588885,
+      "criterion": "|v-1|<0.01",
+      "passed": true
+    },
+    {
+      "name": "[standalone] NIG Student-t PIT KS p t=1",
+      "value": 0.7604592698933466,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "[standalone] NIG Student-t PIT KS p t=5",
+      "value": 0.4664011418365157,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "[standalone] NIG Student-t PIT KS p t=25",
+      "value": 0.05971717318648617,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "[standalone] NIG Student-t PIT KS p t=50",
+      "value": 0.7913272465974845,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "CONTROL [standalone] NIG normal CDF KS p t=1",
+      "value": 6.336998947646417e-24,
+      "criterion": "<0.001 (must fail)",
+      "passed": true
+    }
+  ]
+}
