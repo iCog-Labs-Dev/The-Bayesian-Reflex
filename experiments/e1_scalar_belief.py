@@ -2,7 +2,9 @@
 
 Primary : correctly specified model -> ranks uniform, coverage nominal, RMSE == mean posterior sd.
 Control : deliberately wrong noise (sy assumed 0.25, true 0.5) -> tests MUST fail (test has power).
-Secondary: prior mismatch (theta fixed = 2.0) -> how fast data overrides a bad prior.
+Secondary: prior mismatch (theta fixed = 2.0) -> how fast data overrides a bad prior. Descriptive only
+           (not pass/fail, not part of the ten-seed rule): a single run of 500 trials with seed 123.
+Exit    : status 0 only if every required check passes (including the closed-form check), otherwise 1.
 Run: python experiments/e1_scalar_belief.py
 """
 import json
@@ -85,13 +87,14 @@ def main():
     ok = pooled(C["sy"])
     wrong = pooled(C["sy_wrong"])
     M, W = metrics(*ok), metrics(*wrong)
-    # analytic sanity: posterior sd must equal closed form
+    # analytic sanity: posterior sd must equal closed form (a required check, reported like the others)
     t_ax = np.arange(1, C["T"] + 1)
     sd_exact = 1 / np.sqrt(1 / C["s0"] ** 2 + t_ax / C["sy"] ** 2)
-    assert np.allclose(ok[2][0], sd_exact), "posterior sd deviates from closed form"
+    sd_err = float(np.abs(ok[2] - sd_exact[None, :]).max())          # every trial, every t
 
     N_tot = C["N"] * len(C["seeds"])
     rows = []                                                       # (name, value, criterion, pass)
+    rows.append(("closed-form posterior sd max err", sd_err, "<1e-12", sd_err < 1e-12))
     for t in C["cps"]:
         for p in C["levels"]:
             v, tol = M["cov"][p][t - 1], 3 * np.sqrt(p * (1 - p) / N_tot)
@@ -107,7 +110,8 @@ def main():
     print(f"{'check':34s}{'value':>10s}  criterion")
     for n, v, c, p in rows:
         print(f"{n:34s}{v:10.4f}  {c:24s}{'PASS' if p else 'FAIL'}")
-    print("\nE1 (scalar Gaussian inference module, foundation only):", "PASS" if all(r[3] for r in rows) else "FAIL")
+    ok = all(r[3] for r in rows)
+    print("\nE1 (scalar Gaussian inference module, foundation only):", "PASS" if ok else "FAIL")
 
     PM = prior_mismatch()
     for mu0, d in PM.items():
@@ -155,12 +159,13 @@ def main():
 
     res = dict(scope="scalar Gaussian inference module under the specified generative model; does not test the reflex loop", config={k: v for k, v in C.items() if k != "seeds"}, seeds=C["seeds"],
                checks=[dict(name=n, value=float(v), criterion=c, passed=bool(p)) for n, v, c, p in rows],
-               overall_pass=bool(all(r[3] for r in rows)),
+               overall_pass=bool(ok),
                prior_mismatch={str(k): dict(t_bias_lt_0p1=d["t_bias_lt_0p1"],
                                             cov95_t1=float(d["cov95"][0]), cov95_t10=float(d["cov95"][9]),
                                             cov95_t50=float(d["cov95"][49])) for k, d in PM.items()})
     (OUT / "e1_results.json").write_text(json.dumps(res, indent=2))
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
