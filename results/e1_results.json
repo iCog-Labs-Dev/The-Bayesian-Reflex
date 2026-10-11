@@ -36,6 +36,12 @@
   ],
   "checks": [
     {
+      "name": "closed-form posterior sd max err",
+      "value": 2.7755575615628914e-17,
+      "criterion": "<1e-12",
+      "passed": true
+    },
+    {
       "name": "coverage50 t=1",
       "value": 0.5003,
       "criterion": "|v-0.5|<=0.0150",
