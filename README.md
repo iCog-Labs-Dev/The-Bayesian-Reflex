@@ -17,5 +17,5 @@ The paper reinterprets the "Bayesian reflex" (online Bayesian learning) as a com
 ### Validation (PR 1: foundations E1-E3)
 
 See [`docs/validation_foundations.md`](docs/validation_foundations.md) for the summary and
-[`docs/PR1_Description.pdf`](docs/PR1_Description.pdf) (source: `docs/PR1_Description.tex`) for the full description.
+[docs/PR1_Description.pdf](docs/PR1_Description.pdf)
 Prediction error is a diagnostic only in this PR; it does not drive the belief update.
