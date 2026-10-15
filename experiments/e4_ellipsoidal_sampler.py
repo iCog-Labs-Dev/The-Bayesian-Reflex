@@ -8,16 +8,21 @@ other inference methods. The sampler draws from pi_hat (Monte Carlo shell weight
 Protocol (as in PR 1): criteria fixed before running, 10 seeds (0..9; pooled draws), every positive check has a negative
 control that must fail, exit status 1 if any required check (positive or control) does not hold. alpha = 0.001.
 
-Part A  one shell, 1-D N(0,1), shell {1.0 <= |x| <= 1.6}, rigorous bounds (p = 0.458); 20,000 draws x 10 seeds
+Part A  one shell, 1-D N(0,1), shell {1.0 <= |x| <= 1.6}, rigorous mode (p = 0.458); 20,000 draws x 10 seeds
         KS vs exact CDF p > alpha | mean|x| within 3 SE | mean coalescence time within 3 SE of (1-p)/p | 0 minorization violations
         CONTROLS (must fail): uniform draws without residual steps; the coalescence-time form stated in the source paper
-Part B  Gaussian N(nu, S), d in {1,2,3,5}, partition matched to the target, Monte Carlo bounds as in the paper (N_i = 10,000,
-        eta = 1e-5), 4,000 draws x 10 seeds; d in {2,5} also with rigorous bounds
+Part B  Gaussian N(nu, S), d in {1,2,3,5}, partition matched to the target, mode "monte_carlo" as in the paper (N_i = 10,000,
+        eta = 1e-5; NO perfect-sampling guarantee), 4,000 draws x 10 seeds; d in {2,5} also in mode "rigorous" (Gaussian bounds)
         KS of Mahalanobis^2 vs chi2(d) p > alpha | every mean |z| < 4 | every covariance entry |z| < 4 | violations < 0.1% of steps
         CONTROLS (d=2, must fail): shells chosen uniformly instead of by pi_hat; tail truncated (fixed M = 4 shells)
+        Shell coverage is fixed by prepare() before any draw (tail_tol = 1e-6 of the retained mass: bound in rigorous mode,
+        estimate in monte_carlo mode); a violation larger than violation_tol raises, so a completed run had none that large.
 Part C  non-Gaussian 1-D: bimodal 0.5 N(-2,1) + 0.5 N(2,1) and Student-t with 5 d.o.f.; 4,000 draws x 10 seeds
         KS vs exact CDF p > alpha.   CONTROL (t5, must fail): central ellipsoid only (fixed M = 1; drops ~5% of the mass. A first version used M = 4, which drops
         only ~0.13% and is below the resolution of a KS test at 40,000 draws, so it could not fail and was replaced)
+Part E  coverage independent of the draws (d = 2, monte_carlo mode, 10 seeds): after prepare(), 500 calls of sample(1), 5 calls of
+        sample(100) and one sample(500) per seed: each vs chi2(2) KS p > alpha, the three pairwise two-sample KS p > alpha, and the
+        shell set unchanged by the calls.   CONTROL (must fail): two-sample KS between draws of N(nu, S) and of N(nu, 1.2 S)
 Part D  continuity with PR 1 (ScalarGaussianBelief: mu0=0, s0=1, sigma_y=0.5)
         D1  sampler for the posterior after T=8 observations, partition = (mu_t, sigma_t^2) of the PR 1 belief:
             standardised draws KS vs N(0,1) p > alpha | mean and variance within 3 SE
@@ -42,7 +47,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from bayesian_reflex import ScalarGaussianBelief  # noqa: E402
 from bayesian_reflex.sampling import (EllipsoidalPartition, EllipsoidalSampler, LinearRadii,  # noqa: E402
-                                      gaussian_log_density, gaussian_shell_log_bounds)
+                                      gaussian_log_density, gaussian_log_tail_bound, gaussian_shell_log_bounds)
 
 OUT = ROOT / "results"
 OUT.mkdir(exist_ok=True)
@@ -57,17 +62,23 @@ def add(name, value, criterion, passed, control=False):
 
 def summarize(sampler):
     d = sampler.diagnostics
-    return dict(n_shells=d["n_shells"], mean_T=d["mean_coalescence_steps"], max_T=d["max_coalescence_steps"],
+    return dict(mode=d["mode"], n_shells=d["n_shells"], mean_T=d["mean_coalescence_steps"], max_T=d["max_coalescence_steps"],
                 min_p_selected=float(min(d["p_hat"][i - 1] for i in d["shell_counts"])),
                 last_shell_weight=d["last_shell_weight"], violations=d["n_minorization_violations"],
-                residual_steps=d["n_residual_steps"])
+                max_shortfall=d["max_violation_shortfall"], residual_steps=d["n_residual_steps"],
+                tv_weight_error_estimate=d["tv_weight_error_estimate"], omitted_mass_bound=d["omitted_mass_bound"],
+                omitted_mass_estimate=d["omitted_mass_estimate"])
 
 
 def merge(ds):
-    return dict(n_shells=max(d["n_shells"] for d in ds), mean_T=float(np.mean([d["mean_T"] for d in ds])),
+    pick = lambda k, f: (f(d[k] for d in ds if d[k] is not None) if any(d[k] is not None for d in ds) else None)  # noqa: E731
+    return dict(mode=ds[0]["mode"], n_shells=max(d["n_shells"] for d in ds), mean_T=float(np.mean([d["mean_T"] for d in ds])),
                 max_T=max(d["max_T"] for d in ds), min_p_selected=min(d["min_p_selected"] for d in ds),
                 max_last_shell_weight=max(d["last_shell_weight"] for d in ds),
-                violations=sum(d["violations"] for d in ds), residual_steps=sum(d["residual_steps"] for d in ds))
+                violations=sum(d["violations"] for d in ds), max_shortfall=max(d["max_shortfall"] for d in ds),
+                residual_steps=sum(d["residual_steps"] for d in ds),
+                max_tv_weight_error_estimate=max(d["tv_weight_error_estimate"] for d in ds),
+                max_omitted_mass_bound=pick("omitted_mass_bound", max), max_omitted_mass_estimate=pick("omitted_mass_estimate", max))
 
 
 # ============================================================================================== Part A
@@ -87,10 +98,11 @@ def part_a():
     xs, xs1, xs_u, ds, Ts = [], [], [], [], []
     for seed in SEEDS:
         rng = np.random.default_rng(seed)
+        part = EllipsoidalPartition([0.0], [[1.0]], LinearRadii(1.0, 0.6))
         mk = lambda support: EllipsoidalSampler(  # noqa: E731
-            gaussian_log_density([0.0], [[1.0]]),
-            EllipsoidalPartition([0.0], [[1.0]], LinearRadii(1.0, 0.6)), geometric_support=support, n_mc=100,
-            log_bounds=gaussian_shell_log_bounds(EllipsoidalPartition([0.0], [[1.0]], LinearRadii(1.0, 0.6)), [0.0], [[1.0]]))
+            gaussian_log_density([0.0], [[1.0]]), part, mode="rigorous", geometric_support=support, n_mc=100,
+            log_bounds=gaussian_shell_log_bounds(part, [0.0], [[1.0]]),
+            log_tail_bound=gaussian_log_tail_bound(part, [0.0], [[1.0]]))
         s0, s1 = mk(0), mk(1)
         xs.append(s0.sample_from_shells(np.full(K, 2), rng)[:, 0])
         xs1.append(s1.sample_from_shells(np.full(K, 2), rng)[:, 0])
@@ -128,9 +140,12 @@ def run_gaussian(d, bounds, n=4000, **kw):
     for seed in SEEDS:
         rng = np.random.default_rng(100 + seed)
         part = EllipsoidalPartition(nu, S, LinearRadii(1.5, 0.3))
-        lb = gaussian_shell_log_bounds(part, nu, S) if bounds == "exact" else None
-        s = EllipsoidalSampler(gaussian_log_density(nu, S), part, log_bounds=lb, n_mc=10_000, **kw)
-        shells_override = kw.pop("_uniform_shells", None)
+        if bounds == "exact":
+            s = EllipsoidalSampler(gaussian_log_density(nu, S), part, mode="rigorous", n_mc=10_000,
+                                   log_bounds=gaussian_shell_log_bounds(part, nu, S),
+                                   log_tail_bound=gaussian_log_tail_bound(part, nu, S), **kw)
+        else:
+            s = EllipsoidalSampler(gaussian_log_density(nu, S), part, n_mc=10_000, **kw)
         xs.append(s.sample(n, rng))
         ds.append(summarize(s))
     return np.concatenate(xs), merge(ds), nu, S
@@ -148,6 +163,7 @@ def check_gaussian(label, x, nu, S, dg, required_violations=True):
     add(f"{label}: max |z| of covariance entries", zcov, "<4", zcov < 4)
     rate = dg["violations"] / max(dg["residual_steps"], 1)
     add(f"{label}: minorization violation rate", rate, "<0.001", rate < 1e-3)
+    add(f"{label}: worst violation shortfall (p_hat - a)/p_hat", dg["max_shortfall"], "<0.01", dg["max_shortfall"] < 1e-2)
     return ks
 
 
@@ -170,10 +186,9 @@ def part_b():
         rng = np.random.default_rng(200 + seed)
         part = EllipsoidalPartition(nu, S, LinearRadii(1.5, 0.3))
         s = EllipsoidalSampler(gaussian_log_density(nu, S), part, n_mc=10_000)
-        M = s._M
-        s._ensure_shell(M, rng)
-        xu.append(s.sample_from_shells(rng.integers(1, M + 1, 4000), rng))           # shells chosen uniformly
-        s2 = EllipsoidalSampler(gaussian_log_density(nu, S), part, n_mc=10_000, initial_shells=4, adaptive_shells=False)
+        s.prepare(rng)
+        xu.append(s.sample_from_shells(rng.integers(1, s._M + 1, 4000), rng))        # shells chosen uniformly
+        s2 = EllipsoidalSampler(gaussian_log_density(nu, S), part, n_mc=10_000, n_shells=4)
         xt.append(s2.sample(4000, rng))                                               # tail truncated at M = 4
     for name, x in (("shells chosen uniformly (weights ignored)", np.concatenate(xu)),
                     ("tail truncated at M = 4 shells", np.concatenate(xt))):
@@ -199,7 +214,7 @@ def part_c():
         ld_t = lambda th: -3.0 * np.log1p(th[:, 0] ** 2 / 5.0)                              # noqa: E731
         s = EllipsoidalSampler(ld_t, part_t, n_mc=10_000, initial_shells=8)
         xt.append(s.sample(4000, rng)[:, 0]); dt.append(summarize(s))
-        s = EllipsoidalSampler(ld_t, part_t, n_mc=10_000, initial_shells=1, adaptive_shells=False)
+        s = EllipsoidalSampler(ld_t, part_t, n_mc=10_000, n_shells=1)
         xc.append(s.sample(4000, rng)[:, 0])
     xm, xt, xc = (np.concatenate(v) for v in (xm, xt, xc))
     pm, pt, pc = stats.kstest(xm, cdf_mix).pvalue, stats.kstest(xt, t5.cdf).pvalue, stats.kstest(xc, t5.cdf).pvalue
@@ -208,6 +223,38 @@ def part_c():
     add("C Student-t(5): central ellipsoid only (M = 1 shell): KS p", pc, f"<{ALPHA} (must fail)", pc < ALPHA, control=True)
     diag["C_mixture"], diag["C_t5"] = merge(dm), merge(dt)
     return xm, xt, cdf_mix, t5
+
+
+# ============================================================================================== Part E
+def part_e():
+    """Shell coverage is fixed by prepare() and does not depend on the draws: sample(1), repeated calls, bulk sampling."""
+    nu, S = target_params(2)
+    xs1, xsb, xsk, xsc, changed = [], [], [], [], 0
+    for seed in SEEDS:
+        rng = np.random.default_rng(600 + seed)
+        s = EllipsoidalSampler(gaussian_log_density(nu, S), EllipsoidalPartition(nu, S, LinearRadii(1.5, 0.3)), n_mc=10_000)
+        s.prepare(rng)
+        M, cum = s._M, s._cum.copy()
+        xs1.append(np.vstack([s.sample(1, rng) for _ in range(500)]))
+        xsb.append(np.vstack([s.sample(100, rng) for _ in range(5)]))
+        xsk.append(s.sample(500, rng))
+        changed += int(s._M != M or not np.array_equal(s._cum, cum))
+        S2 = 1.2 * S
+        sc = EllipsoidalSampler(gaussian_log_density(nu, S2), EllipsoidalPartition(nu, S2, LinearRadii(1.5, 0.3)), n_mc=10_000)
+        xsc.append(sc.sample(500, rng))
+    maha = lambda xs_: np.sum(np.linalg.solve(np.linalg.cholesky(S), (np.vstack(xs_) - nu).T) ** 2, axis=0)  # noqa: E731
+    m = {"sample(1) x 500": maha(xs1), "sample(100) x 5": maha(xsb), "sample(500)": maha(xsk)}
+    for name, v in m.items():
+        ks = stats.kstest(v, stats.chi2(2).cdf).pvalue
+        add(f"E {name}: KS p of Mahalanobis^2 vs chi2(2)", ks, f">{ALPHA}", ks > ALPHA)
+    names = list(m)
+    for a_, b_ in ((0, 2), (1, 2), (0, 1)):
+        ks = stats.ks_2samp(m[names[a_]], m[names[b_]]).pvalue
+        add(f"E two-sample KS p: {names[a_]} vs {names[b_]}", ks, f">{ALPHA}", ks > ALPHA)
+    add("E seeds whose shell set changed during sampling", changed, "0", changed == 0)
+    ks = stats.ks_2samp(m["sample(500)"], maha(xsc)).pvalue
+    add("E two-sample KS p: target vs target with covariance x 1.2", ks, f"<{ALPHA} (must fail)", ks < ALPHA, control=True)
+    diag["E"] = dict(draws_per_variant=int(len(m["sample(500)"])), seeds_with_changed_shells=int(changed))
 
 
 # ============================================================================================== Part D
@@ -286,6 +333,7 @@ def main():
     xa, cdf_a = part_a()
     bres = part_b()
     xm, xt, cdf_mix, t5 = part_c()
+    part_e()
     z, ranks = part_d()
 
     print(f"{'check':74s}{'value':>11s}  criterion")
