@@ -2,8 +2,6 @@
 
 Scope: these three experiments validate the scalar Gaussian inference module of the Bayesian-reflex implementation (belief maintenance, sequential updating, standardized one-step-ahead prediction error). They do NOT test the reflex loop, function-space inference, nonstationarity, action, or the paper-specific machinery; those come in later PRs.
 
-The full PR description (with the maths, criteria and caveats) is in `docs/PR1_Description.pdf`; its source is `docs/PR1_Description.tex`.
-
 | Stage | Question | Reference | Seeds | Result |
 |---|---|---|---|---|
 | E1 | Is the scalar belief accurate and calibrated (simulation-based calibration, 1000 trials x 10 seeds)? | analytic Gaussian posterior | 0-9 | 33/33 checks |

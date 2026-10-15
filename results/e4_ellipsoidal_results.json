@@ -1,0 +1,529 @@
+{
+  "scope": "implementation of the paper's ellipsoidal decomposition sampler (sec. 4); draws are from pi_hat (Monte Carlo shell weights); no comparison with other inference methods",
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "alpha": 0.001,
+  "overall_pass": true,
+  "checks": [
+    {
+      "name": "A shell: KS p vs exact CDF",
+      "value": 0.2899699741389209,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "A shell: mean|x| z-score",
+      "value": 0.5905558319552964,
+      "criterion": "|z|<3",
+      "passed": true
+    },
+    {
+      "name": "A shell: mean coalescence time z-score vs (1-p)/p",
+      "value": -0.7221174899916311,
+      "criterion": "|z|<3",
+      "passed": true
+    },
+    {
+      "name": "A shell: minorization violations",
+      "value": 0.0,
+      "criterion": "0",
+      "passed": true
+    },
+    {
+      "name": "CONTROL A shell: uniform draws, no residual steps: KS p",
+      "value": 0.0,
+      "criterion": "<0.001 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "CONTROL A shell: coalescence support {1,2,...} (source paper): KS p",
+      "value": 8.18398049640653e-298,
+      "criterion": "<0.001 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "B d=1 MC bounds: KS p of Mahalanobis^2 vs chi2(1)",
+      "value": 0.8667559822703763,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "B d=1 MC bounds: max |z| of means",
+      "value": 0.9311671877853495,
+      "criterion": "<4",
+      "passed": true
+    },
+    {
+      "name": "B d=1 MC bounds: max |z| of covariance entries",
+      "value": 0.885265483948291,
+      "criterion": "<4",
+      "passed": true
+    },
+    {
+      "name": "B d=1 MC bounds: minorization violation rate",
+      "value": 0.0,
+      "criterion": "<0.001",
+      "passed": true
+    },
+    {
+      "name": "B d=1 MC bounds: worst violation shortfall (p_hat - a)/p_hat",
+      "value": 0.0,
+      "criterion": "<0.01",
+      "passed": true
+    },
+    {
+      "name": "B d=2 MC bounds: KS p of Mahalanobis^2 vs chi2(2)",
+      "value": 0.24503483163501127,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "B d=2 MC bounds: max |z| of means",
+      "value": 0.03746359839479454,
+      "criterion": "<4",
+      "passed": true
+    },
+    {
+      "name": "B d=2 MC bounds: max |z| of covariance entries",
+      "value": 1.262027072949717,
+      "criterion": "<4",
+      "passed": true
+    },
+    {
+      "name": "B d=2 MC bounds: minorization violation rate",
+      "value": 0.0,
+      "criterion": "<0.001",
+      "passed": true
+    },
+    {
+      "name": "B d=2 MC bounds: worst violation shortfall (p_hat - a)/p_hat",
+      "value": 0.0,
+      "criterion": "<0.01",
+      "passed": true
+    },
+    {
+      "name": "B d=3 MC bounds: KS p of Mahalanobis^2 vs chi2(3)",
+      "value": 0.6285404344548295,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "B d=3 MC bounds: max |z| of means",
+      "value": 0.9240954480563737,
+      "criterion": "<4",
+      "passed": true
+    },
+    {
+      "name": "B d=3 MC bounds: max |z| of covariance entries",
+      "value": 2.561592721722029,
+      "criterion": "<4",
+      "passed": true
+    },
+    {
+      "name": "B d=3 MC bounds: minorization violation rate",
+      "value": 0.0,
+      "criterion": "<0.001",
+      "passed": true
+    },
+    {
+      "name": "B d=3 MC bounds: worst violation shortfall (p_hat - a)/p_hat",
+      "value": 0.0,
+      "criterion": "<0.01",
+      "passed": true
+    },
+    {
+      "name": "B d=5 MC bounds: KS p of Mahalanobis^2 vs chi2(5)",
+      "value": 0.8278465513209615,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "B d=5 MC bounds: max |z| of means",
+      "value": 1.9832719806106873,
+      "criterion": "<4",
+      "passed": true
+    },
+    {
+      "name": "B d=5 MC bounds: max |z| of covariance entries",
+      "value": 1.3995762894988306,
+      "criterion": "<4",
+      "passed": true
+    },
+    {
+      "name": "B d=5 MC bounds: minorization violation rate",
+      "value": 0.0,
+      "criterion": "<0.001",
+      "passed": true
+    },
+    {
+      "name": "B d=5 MC bounds: worst violation shortfall (p_hat - a)/p_hat",
+      "value": 0.0,
+      "criterion": "<0.01",
+      "passed": true
+    },
+    {
+      "name": "B d=2 rigorous bounds: KS p of Mahalanobis^2 vs chi2(2)",
+      "value": 0.18636668639777432,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "B d=2 rigorous bounds: max |z| of means",
+      "value": 0.6431872927493859,
+      "criterion": "<4",
+      "passed": true
+    },
+    {
+      "name": "B d=2 rigorous bounds: max |z| of covariance entries",
+      "value": 1.3138065114008604,
+      "criterion": "<4",
+      "passed": true
+    },
+    {
+      "name": "B d=2 rigorous bounds: minorization violation rate",
+      "value": 0.0,
+      "criterion": "<0.001",
+      "passed": true
+    },
+    {
+      "name": "B d=2 rigorous bounds: worst violation shortfall (p_hat - a)/p_hat",
+      "value": 0.0,
+      "criterion": "<0.01",
+      "passed": true
+    },
+    {
+      "name": "B d=2 rigorous bounds: violations",
+      "value": 0.0,
+      "criterion": "0",
+      "passed": true
+    },
+    {
+      "name": "B d=5 rigorous bounds: KS p of Mahalanobis^2 vs chi2(5)",
+      "value": 0.7488902555732699,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "B d=5 rigorous bounds: max |z| of means",
+      "value": 1.6040844251757889,
+      "criterion": "<4",
+      "passed": true
+    },
+    {
+      "name": "B d=5 rigorous bounds: max |z| of covariance entries",
+      "value": 2.667395782929941,
+      "criterion": "<4",
+      "passed": true
+    },
+    {
+      "name": "B d=5 rigorous bounds: minorization violation rate",
+      "value": 0.0,
+      "criterion": "<0.001",
+      "passed": true
+    },
+    {
+      "name": "B d=5 rigorous bounds: worst violation shortfall (p_hat - a)/p_hat",
+      "value": 0.0,
+      "criterion": "<0.01",
+      "passed": true
+    },
+    {
+      "name": "B d=5 rigorous bounds: violations",
+      "value": 0.0,
+      "criterion": "0",
+      "passed": true
+    },
+    {
+      "name": "CONTROL B d=2: shells chosen uniformly (weights ignored): KS p",
+      "value": 0.0,
+      "criterion": "<0.001 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "CONTROL B d=2: tail truncated at M = 4 shells: KS p",
+      "value": 3.0287445845799383e-110,
+      "criterion": "<0.001 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "C bimodal normal mixture: KS p vs exact CDF",
+      "value": 0.9038931648092349,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "C Student-t(5): KS p vs exact CDF",
+      "value": 0.4251356978803946,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "CONTROL C Student-t(5): central ellipsoid only (M = 1 shell): KS p",
+      "value": 1.3486214201414795e-21,
+      "criterion": "<0.001 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "E sample(1) x 500: KS p of Mahalanobis^2 vs chi2(2)",
+      "value": 0.4583215083330209,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "E sample(100) x 5: KS p of Mahalanobis^2 vs chi2(2)",
+      "value": 0.65741165047506,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "E sample(500): KS p of Mahalanobis^2 vs chi2(2)",
+      "value": 0.32697040314041037,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "E two-sample KS p: sample(1) x 500 vs sample(500)",
+      "value": 0.12345636412932025,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "E two-sample KS p: sample(100) x 5 vs sample(500)",
+      "value": 0.48067530684717075,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "E two-sample KS p: sample(1) x 500 vs sample(100) x 5",
+      "value": 0.9124660059809748,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "E seeds whose shell set changed during sampling",
+      "value": 0.0,
+      "criterion": "0",
+      "passed": true
+    },
+    {
+      "name": "CONTROL E two-sample KS p: target vs target with covariance x 1.2",
+      "value": 3.443584503215665e-07,
+      "criterion": "<0.001 (must fail)",
+      "passed": true
+    },
+    {
+      "name": "D1 PR1 posterior: KS p of standardised draws",
+      "value": 0.6717847693449588,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "D1 PR1 posterior: |mean z|",
+      "value": 0.0020476113585436075,
+      "criterion": "<0.0150",
+      "passed": true
+    },
+    {
+      "name": "D1 PR1 posterior: |var z - 1|",
+      "value": 0.0005186363658485904,
+      "criterion": "<0.0212",
+      "passed": true
+    },
+    {
+      "name": "D2 SBC (sampler vs PR1-belief partition): chi2 rank p",
+      "value": 0.7804668905358231,
+      "criterion": ">0.001",
+      "passed": true
+    },
+    {
+      "name": "D2 SBC (sampler vs PR1-belief partition): coverage 50%",
+      "value": 0.502,
+      "criterion": "|v-0.5|<=0.0274",
+      "passed": true
+    },
+    {
+      "name": "D2 SBC (sampler vs PR1-belief partition): coverage 80%",
+      "value": 0.7906666666666666,
+      "criterion": "|v-0.8|<=0.0219",
+      "passed": true
+    },
+    {
+      "name": "D2 SBC (sampler vs PR1-belief partition): coverage 95%",
+      "value": 0.944,
+      "criterion": "|v-0.95|<=0.0119",
+      "passed": true
+    },
+    {
+      "name": "CONTROL D2 SBC wrong noise level 0.25: chi2 rank p",
+      "value": 0.0,
+      "criterion": "<0.001 (must fail)",
+      "passed": true
+    }
+  ],
+  "diagnostics": {
+    "A": {
+      "exact_p": 0.4584060113052234,
+      "mean_T": 1.1788800000000001,
+      "theory_mean_T": 1.1814722654982017,
+      "mean_abs_x_exact": 1.2618427196993045,
+      "mean_abs_x_sampled": 1.2620667430764976,
+      "mean_abs_x_support1": 1.22922916062673,
+      "draws": 200000
+    },
+    "B_d1_mc": {
+      "mode": "monte_carlo",
+      "n_shells": 16,
+      "mean_T": 1.914475,
+      "max_T": 30,
+      "min_p_selected": 0.24787197143193773,
+      "max_last_shell_weight": 1.015423282574131e-08,
+      "violations": 0,
+      "max_shortfall": 0.0,
+      "residual_steps": 76579,
+      "max_tv_weight_error_estimate": 0.0014165243278156333,
+      "max_omitted_mass_bound": null,
+      "max_omitted_mass_estimate": 2.324376728762852e-09
+    },
+    "B_d2_mc": {
+      "mode": "monte_carlo",
+      "n_shells": 16,
+      "mean_T": 1.6914000000000002,
+      "max_T": 23,
+      "min_p_selected": 0.24783859656603208,
+      "max_last_shell_weight": 7.337710542084564e-08,
+      "violations": 0,
+      "max_shortfall": 0.0,
+      "residual_steps": 67656,
+      "max_tv_weight_error_estimate": 0.0013806394804684922,
+      "max_omitted_mass_bound": null,
+      "max_omitted_mass_estimate": 1.7832518833667674e-08
+    },
+    "B_d3_mc": {
+      "mode": "monte_carlo",
+      "n_shells": 16,
+      "mean_T": 1.4495999999999998,
+      "max_T": 26,
+      "min_p_selected": 0.24782681711305832,
+      "max_last_shell_weight": 3.423273621839294e-07,
+      "violations": 0,
+      "max_shortfall": 0.0,
+      "residual_steps": 57984,
+      "max_tv_weight_error_estimate": 0.0012188655050874222,
+      "max_omitted_mass_bound": null,
+      "max_omitted_mass_estimate": 8.892750947784668e-08
+    },
+    "B_d5_mc": {
+      "mode": "monte_carlo",
+      "n_shells": 32,
+      "mean_T": 1.219675,
+      "max_T": 23,
+      "min_p_selected": 0.18924402668804852,
+      "max_last_shell_weight": 3.5648949983325677e-22,
+      "violations": 0,
+      "max_shortfall": 0.0,
+      "residual_steps": 48787,
+      "max_tv_weight_error_estimate": 0.0010759632258991738,
+      "max_omitted_mass_bound": null,
+      "max_omitted_mass_estimate": 1.90311501981583e-23
+    },
+    "B_d2_exact": {
+      "mode": "rigorous",
+      "n_shells": 16,
+      "mean_T": 1.6906500000000002,
+      "max_T": 23,
+      "min_p_selected": 0.24783303636722886,
+      "max_last_shell_weight": 7.337710542084564e-08,
+      "violations": 0,
+      "max_shortfall": 0.0,
+      "residual_steps": 67626,
+      "max_tv_weight_error_estimate": 0.0013806394804684922,
+      "max_omitted_mass_bound": 1.527019197037214e-08,
+      "max_omitted_mass_estimate": 1.7832518833667674e-08
+    },
+    "B_d5_exact": {
+      "mode": "rigorous",
+      "n_shells": 16,
+      "mean_T": 1.252675,
+      "max_T": 37,
+      "min_p_selected": 0.18919065798198118,
+      "max_last_shell_weight": 3.828010329360226e-06,
+      "violations": 0,
+      "max_shortfall": 0.0,
+      "residual_steps": 50107,
+      "max_tv_weight_error_estimate": 0.0010759617281736141,
+      "max_omitted_mass_bound": 9.502473145924384e-07,
+      "max_omitted_mass_estimate": 1.1367119763867005e-06
+    },
+    "C_mixture": {
+      "mode": "monte_carlo",
+      "n_shells": 16,
+      "mean_T": 3.2826250000000003,
+      "max_T": 275,
+      "min_p_selected": 0.009660485809891851,
+      "max_last_shell_weight": 3.7808869138280506e-65,
+      "violations": 0,
+      "max_shortfall": 0.0,
+      "residual_steps": 131305,
+      "max_tv_weight_error_estimate": 0.0018946469152064072,
+      "max_omitted_mass_bound": null,
+      "max_omitted_mass_estimate": 3.8378218863826335e-73
+    },
+    "C_t5": {
+      "mode": "monte_carlo",
+      "n_shells": 32,
+      "mean_T": 11.2448,
+      "max_T": 150,
+      "min_p_selected": 0.07870787210770666,
+      "max_last_shell_weight": 2.248145409085713e-08,
+      "violations": 0,
+      "max_shortfall": 0.0,
+      "residual_steps": 449792,
+      "max_tv_weight_error_estimate": 0.0032011031334842803,
+      "max_omitted_mass_bound": null,
+      "max_omitted_mass_estimate": 1.0967899308121732e-07
+    },
+    "E": {
+      "draws_per_variant": 5000,
+      "seeds_with_changed_shells": 0
+    },
+    "D1": {
+      "mode": "monte_carlo",
+      "n_shells": 16,
+      "mean_T": 2.0343499999999994,
+      "max_T": 30,
+      "min_p_selected": 0.11959488541337594,
+      "max_last_shell_weight": 1.88841511898048e-17,
+      "violations": 0,
+      "max_shortfall": 0.0,
+      "residual_steps": 81374,
+      "max_tv_weight_error_estimate": 0.002112137532317932,
+      "max_omitted_mass_bound": null,
+      "max_omitted_mass_estimate": 3.019694735480982e-19
+    },
+    "D2": {
+      "n_trials": 3000,
+      "rank_counts_10_bins": [
+        304,
+        294,
+        303,
+        312,
+        274,
+        292,
+        303,
+        305,
+        289,
+        324
+      ]
+    }
+  }
+}

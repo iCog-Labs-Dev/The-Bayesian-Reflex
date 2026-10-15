@@ -16,6 +16,11 @@ The paper reinterprets the "Bayesian reflex" (online Bayesian learning) as a com
 
 ### Validation (PR 1: foundations E1-E3)
 
-See [`docs/validation_foundations.md`](docs/validation_foundations.md) for the summary and
-[docs/PR1_Description.pdf](docs/PR1_Description.pdf)
+See [`docs/validation_foundations.md`](docs/validation_foundations.md) for the summary.
 Prediction error is a diagnostic only in this PR; it does not drive the belief update.
+
+### Ellipsoidal decomposition sampler (PR 2)
+
+I.i.d. sampling by ellipsoidal decomposition (paper sec. 4; exact only under stated conditions): see
+[`docs/ellipsoidal_sampler.md`](docs/ellipsoidal_sampler.md) for the method, which parts are exact and which approximate, the ambiguities found in the paper, validation results and limitations.
+Run `python experiments/e4_ellipsoidal_sampler.py`.
