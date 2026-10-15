@@ -11,12 +11,29 @@ Shells (paper eq. 11)      A_i = {theta : c_{i-1} <= (theta-mu)^T Sigma^{-1} (th
 Mixture (eq. 12)           pi = sum_i pi(A_i) pi_i,  pi_i = pi 1_{A_i} / pi(A_i)
                            -> weights pi_hat(A_i) = L(A_i) * mean_U[pi_tilde], U uniform on A_i   (SOURCE eq. 3)
 Minorization (eq. 13)      P_i(theta, .) >= p_i Q_i(.),  p_i = inf pi / sup pi on A_i, Q_i uniform on A_i
-                           -> p_hat_i = s_hat_i / S_hat_i - eta  (min and max over the Monte Carlo draws, SOURCE sec. 3.1)
+                           -> mode "monte_carlo": p_hat_i = s_hat_i / S_hat_i - eta (min and max over the Monte Carlo draws,
+                              SOURCE sec. 3.1); mode "rigorous": caller-supplied bounds
 Split chain / perfect draw P_i = p Q_i + (1-p) R_i;  draw T, theta^(-T) ~ Q_i, T steps of R_i, return theta^(0)
                            -> EllipsoidalSampler._perfect_sample_shell
-Overall sampler (sec. 4.3) pick shell i with probability proportional to pi_hat(A_i), then a perfect draw from pi_i;
-                           if the last shell M is picked, double M (SOURCE Algorithm 1, step 6(ii))
-                           -> EllipsoidalSampler.sample
+Overall sampler (sec. 4.3) pick shell i with probability proportional to pi_hat(A_i), then a perfect draw from pi_i
+                           -> EllipsoidalSampler.prepare (fix the shells) and EllipsoidalSampler.sample
+
+What is exact and what is approximate
+-------------------------------------
+Conditional on the prepared state (the shells 1..M, the estimated weights and the p_hat_i), the draws returned by
+``sample`` are i.i.d. from the mixture pi_hat_M = sum_{i<=M} w_i pi_i, and the draw inside a shell is EXACT from pi_i if and
+only if the minorization holds for the p_hat_i that is used. The result differs from the target pi by
+    TV(pi_hat_M, pi) = 1/2 sum_{i<=M} |pi(A_i) - w_i| + tau/2,    tau = pi(outside shell M)   (identity: shells are disjoint),
+i.e. by the weight estimation error (Monte Carlo, O(N_i^{-1/2})) and the omitted tail mass. Therefore:
+  * mode "rigorous" (caller supplies log_bounds AND log_tail_bound): the perfect-sampling guarantee holds (a violation raises),
+    the omitted mass is bounded by tail_tol relative to the retained mass; only the weight error remains approximate and is
+    reported as an estimate in ``diagnostics['tv_weight_error_estimate']``.
+  * mode "monte_carlo" (the paper's practical mode): p_hat comes from the sampled min and max, which are optimistic, so NO
+    guarantee is claimed; a detected violation raises (``on_violation='count'`` only counts them), and the omitted mass is an
+    ESTIMATE (geometric extrapolation of the last shell weights) unless a tail bound is supplied.
+The shells are fixed by ``prepare`` BEFORE any returned draw is made and never change afterwards, so ``sample(1)``, repeated
+calls and one bulk call draw from the same distribution (the paper's Algorithm 1 doubles M when a returned draw lands in the last
+shell, which couples M to the returned uniforms; that coupling is removed here, see docs/ellipsoidal_sampler.md).
 
 Residual step. With a = min(1, pi(theta')/pi(theta)) for a uniform proposal theta', the MH step is "accept if U < a".
 Because a >= p, conditioning on U >= p (an event of probability 1-p that is independent of theta') gives exactly the
@@ -28,6 +45,7 @@ Coalescence time. T counts the residual steps after the regeneration draw from Q
 not pi_i (verified analytically and numerically, see docs). ``geometric_support=0`` is the default and ``1`` reproduces
 the stated form for comparison.
 """
+
 import numbers
 
 import numpy as np
@@ -37,6 +55,11 @@ from scipy.special import gammaln, logsumexp
 
 class SamplerInfeasibleError(ValueError):
     """The sampler cannot run with these settings (e.g. p_hat_i <= 0 or a coalescence time beyond the safety cap)."""
+
+
+class MinorizationViolationError(SamplerInfeasibleError):
+    """A step violated the minorization P >= p_hat Q (an acceptance ratio below p_hat, or a density outside the supplied
+    bounds): the bounds are invalid, so the perfect-sampling guarantee does not hold."""
 
 
 def _check_int(value, name, minimum):
@@ -156,40 +179,70 @@ class EllipsoidalSampler:
     ----------
     log_density : callable, (n, d) array -> (n,) array of log pi_tilde (unnormalised log density, -inf allowed).
     partition   : EllipsoidalPartition.
-    n_mc        : Monte Carlo size N_i per shell for the weights and for s_hat, S_hat (SOURCE: 10,000).
-    eta         : the SOURCE's eta_i in p_hat_i = s_hat_i/S_hat_i - eta_i (SOURCE: 1e-5; its Challenger example uses 0).
+    mode        : "monte_carlo" (default; the paper's practical mode, NO perfect-sampling guarantee) or "rigorous"
+                  (needs ``log_bounds`` and ``log_tail_bound``; a violation raises).
+    n_mc        : Monte Carlo size N_i per shell for the weights (and, in monte_carlo mode, for s_hat, S_hat). SOURCE: 10,000.
+    eta         : monte_carlo mode only: p_hat_i = s_hat_i/S_hat_i - eta (SOURCE: 1e-5).
     geometric_support : 0 -> T in {0,1,...} (default, exact); 1 -> {1,2,...} as written in the SOURCE eq. (24).
-    log_bounds  : optional callable i -> (log s_i, log S_i), rigorous bounds on log pi_tilde over shell i. When given
-                  they replace the Monte Carlo min/max and no eta is subtracted (minorization is then guaranteed).
-    initial_shells, max_shells : M starts at ``initial_shells`` and doubles when the last shell is selected.
-    min_p       : a selected shell needs p_hat > min_p, otherwise SamplerInfeasibleError is raised (shells that are never
-                  selected may have any p_hat, as in the SOURCE where p_hat_i is only used when pi_i is drawn).
-    adaptive_shells : False keeps M fixed (the tail beyond shell M is silently dropped; used only as a negative control).
+    log_bounds  : rigorous mode: callable i -> (log s_i, log S_i), valid bounds on log pi_tilde over shell i.
+    log_tail_bound : callable M -> log of an upper bound on the integral of pi_tilde OUTSIDE the first M shells (same units as
+                  the weights). Required in rigorous mode; optional in monte_carlo mode.
+    tail_tol    : shell expansion stops when (bound or estimate of the omitted mass) / (retained mass) <= tail_tol.
+    n_shells    : fix the number of shells and skip the coverage criterion (truncation; for controls and experts only).
+    initial_shells, max_shells, patience : coverage search starts at ``initial_shells`` shells, doubles up to ``max_shells``;
+                  without a tail bound the estimate rule also needs the last ``patience`` weight ratios to be below 1.
+    on_violation : "raise" (default) or "count" (monte_carlo mode only): what to do when an acceptance ratio a falls below p_hat.
+    violation_tol : monte_carlo mode: a violation raises only if its relative shortfall (p_hat - a)/p_hat exceeds this (default
+                  1e-2); smaller ones are counted and the worst is reported as ``max_violation_shortfall`` (estimated bounds are
+                  optimistic by about the Monte Carlo spacing, so tiny shortfalls are expected). 0 = raise on any. In rigorous
+                  mode it is 0: any violation, or any density value outside the bounds, raises.
     max_coalescence : safety cap on the drawn coalescence time; exceeding it raises instead of truncating.
+    min_p       : a selected shell needs p_hat > min_p, otherwise SamplerInfeasibleError is raised.
     """
 
-    def __init__(self, log_density, partition, n_mc=10_000, eta=1e-5, geometric_support=0, log_bounds=None,
-                 initial_shells=16, max_shells=1_000_000, max_coalescence=1_000_000, adaptive_shells=True,
-                 min_p=1e-9):
+    def __init__(self, log_density, partition, mode="monte_carlo", n_mc=10_000, eta=1e-5, geometric_support=0,
+                 log_bounds=None, log_tail_bound=None, tail_tol=1e-6, n_shells=None, initial_shells=16,
+                 max_shells=1_000_000, max_coalescence=1_000_000, on_violation="raise", violation_tol=None, min_p=1e-9, patience=3):
         if not callable(log_density):
             raise ValueError("log_density must be callable")
         if not isinstance(partition, EllipsoidalPartition):
             raise ValueError("partition must be an EllipsoidalPartition")
-        if log_bounds is not None and not callable(log_bounds):
-            raise ValueError("log_bounds must be callable or None")
+        if mode not in ("monte_carlo", "rigorous"):
+            raise ValueError("mode must be 'monte_carlo' or 'rigorous'")
+        for name, fn in (("log_bounds", log_bounds), ("log_tail_bound", log_tail_bound)):
+            if fn is not None and not callable(fn):
+                raise ValueError(f"{name} must be callable or None")
+        if mode == "rigorous" and (log_bounds is None or log_tail_bound is None):
+            raise ValueError("mode='rigorous' requires both log_bounds and log_tail_bound")
+        if mode == "monte_carlo" and log_bounds is not None:
+            raise ValueError("log_bounds are rigorous bounds: pass mode='rigorous' (monte_carlo mode estimates them)")
+        if on_violation not in ("raise", "count"):
+            raise ValueError("on_violation must be 'raise' or 'count'")
+        if mode == "rigorous" and on_violation != "raise":
+            raise ValueError("mode='rigorous' always raises on a violation")
+        if mode == "rigorous" and violation_tol not in (None, 0, 0.0):
+            raise ValueError("mode='rigorous' tolerates no violation (violation_tol must be 0)")
         if geometric_support not in (0, 1):
             raise ValueError("geometric_support must be 0 or 1")
-        self.log_density, self.partition, self.log_bounds = log_density, partition, log_bounds
+        self.log_density, self.partition, self.mode = log_density, partition, mode
+        self.log_bounds, self.log_tail_bound, self.on_violation = log_bounds, log_tail_bound, on_violation
+        self.violation_tol = 0.0 if mode == "rigorous" else _check_float(1e-2 if violation_tol is None else violation_tol,
+                                                                         "violation_tol", 0.0)
         self.n_mc = _check_int(n_mc, "n_mc", 2)
         self.eta = _check_float(eta, "eta", 0.0, 1.0)
         self.geometric_support = int(geometric_support)
+        self.tail_tol = _check_float(tail_tol, "tail_tol", 0.0, 1.0, strict_low=True)
         self.max_shells = _check_int(max_shells, "max_shells", 1)
-        self._M = min(_check_int(initial_shells, "initial_shells", 1), self.max_shells)
+        self.patience = _check_int(patience, "patience", 1)
+        self.n_shells_fixed = None if n_shells is None else min(_check_int(n_shells, "n_shells", 1), self.max_shells)
+        self._M = max(_check_int(initial_shells, "initial_shells", 1), self.patience + 1)
+        self._M = min(self._M, self.max_shells)
         self.max_coalescence = _check_int(max_coalescence, "max_coalescence", 1)
-        self.adaptive_shells = bool(adaptive_shells)
         self.min_p = _check_float(min_p, "min_p", 0.0, strict_low=True)
-        self._shells = []                       # per shell: dict(log_weight, log_s, log_S, p_hat)
+        self._shells = []                       # per shell: dict(log_weight, cv, log_s, log_S, p_hat)
+        self._prepared, self._cum, self._coverage = False, None, {}
         self._steps_total = self._steps_max = self._draws = self._violations = self._residual_steps = 0
+        self._max_shortfall = 0.0
         self._shell_counts = {}
 
     # ---------------------------------------------------------------- density evaluation
@@ -207,8 +260,12 @@ class EllipsoidalSampler:
             k = len(self._shells) + 1
             theta = self.partition.sample_uniform(k, self.n_mc, rng)
             lp = self._eval(theta)
-            log_weight = self.partition.log_volume(k) + float(logsumexp(lp)) - np.log(self.n_mc)
-            if self.log_bounds is None:
+            lse1 = float(logsumexp(lp))
+            log_weight = self.partition.log_volume(k) + lse1 - np.log(self.n_mc)
+            # relative standard deviation of pi_tilde over the shell: sqrt(E[pi^2]/E[pi]^2 - 1), in log space
+            cv = float(np.sqrt(max(np.exp(float(logsumexp(2.0 * lp)) - 2.0 * lse1 + np.log(self.n_mc)) - 1.0, 0.0))) \
+                if np.isfinite(lse1) else 0.0
+            if self.mode == "monte_carlo":
                 log_s, log_S = float(lp.min()), float(lp.max())
                 p_hat = np.exp(log_s - log_S) - self.eta if np.isfinite(log_S) else 0.0
             else:
@@ -218,29 +275,96 @@ class EllipsoidalSampler:
                 p_hat = float(np.exp(log_s - log_S))
             # p_hat is only REQUIRED for shells that are actually drawn from (checked in _perfect_sample_shell); far-tail
             # shells with negligible weight may have p_hat <= 0 without affecting the sampler.
-            self._shells.append(dict(log_weight=log_weight, log_s=log_s, log_S=log_S, p_hat=min(p_hat, 1.0 - 1e-12)))
+            self._shells.append(dict(log_weight=log_weight, cv=cv, log_s=log_s, log_S=log_S,
+                                     p_hat=min(p_hat, 1.0 - 1e-12)))
 
     def _weights(self, M):
         lw = np.array([s["log_weight"] for s in self._shells[:M]])
         w = np.exp(lw - logsumexp(lw))
         return w / w.sum()
 
-    # ---------------------------------------------------------------- shell selection (Algorithm 1, step 6(i)-(ii))
-    def _select_shells(self, u, rng):
-        M = self._M
-        while True:
+    # ---------------------------------------------------------------- shell coverage (fixed before any draw is returned)
+    def _coverage_check(self, M):
+        """Return (stop, info): is the omitted mass beyond shell M small enough, by bound or by estimate?"""
+        lw = np.array([s["log_weight"] for s in self._shells[:M]])
+        log_retained = float(logsumexp(lw))
+        info = dict(omitted_mass_bound=None, omitted_mass_estimate=None)
+        ratios_ok = False
+        if M >= 2 and np.isfinite(lw[-1]) and np.isfinite(lw[-2]):             # geometric extrapolation of the tail
+            last = lw[-(self.patience + 1):]
+            r = np.exp(np.diff(last))
+            ratios_ok = bool(len(r) == self.patience and np.all(r < 1.0))
+            if r[-1] < 1.0:
+                log_tau = lw[-1] + np.log(r[-1]) - np.log1p(-r[-1])
+                info["omitted_mass_estimate"] = float(np.exp(min(log_tau - log_retained, 700.0)))
+        elif not np.isfinite(lw[-1]):                                          # no density at all beyond this point
+            info["omitted_mass_estimate"], ratios_ok = 0.0, True
+        if self.log_tail_bound is not None:
+            frac = float(np.exp(min(float(self.log_tail_bound(M)) - log_retained, 700.0)))
+            info["omitted_mass_bound"] = frac
+            return frac <= self.tail_tol, info
+        est = info["omitted_mass_estimate"]
+        return bool(ratios_ok and est is not None and est <= self.tail_tol), info
+
+    def prepare(self, rng):
+        """Fix the shells (and so the mixture weights) once, independently of any returned draw. Idempotent.
+
+        With ``n_shells`` the number of shells is given and no coverage criterion is applied. Otherwise M starts at
+        ``initial_shells`` and doubles until the omitted-mass bound (``log_tail_bound``) or, without a bound, the
+        omitted-mass ESTIMATE is at most ``tail_tol`` of the retained mass.
+        """
+        if self._prepared:
+            return self
+        if not isinstance(rng, np.random.Generator):
+            raise ValueError("rng must be a numpy.random.Generator")
+        if self.n_shells_fixed is not None:
+            M = self.n_shells_fixed
             self._ensure_shell(M, rng)
-            cum = np.cumsum(self._weights(M))
-            cum[-1] = 1.0
-            idx = np.minimum(np.searchsorted(cum, u, side="right"), M - 1)
-            if not self.adaptive_shells or idx.max() < M - 1:
-                break
-            if 2 * M > self.max_shells:
-                raise SamplerInfeasibleError(
-                    f"the last shell was selected with M = {M} and max_shells = {self.max_shells} is reached")
-            M *= 2
-        self._M = M
+            info = dict(omitted_mass_bound=None, omitted_mass_estimate=None)
+        else:
+            M = self._M
+            while True:
+                self._ensure_shell(M, rng)
+                stop, info = self._coverage_check(M)
+                if stop:
+                    break
+                if 2 * M > self.max_shells:
+                    raise SamplerInfeasibleError(
+                        f"the omitted mass is not yet below tail_tol = {self.tail_tol:g} with M = {M} shells and "
+                        f"max_shells = {self.max_shells} is reached")
+                M *= 2
+        self._M, self._coverage, self._prepared = M, info, True
+        cum = np.cumsum(self._weights(M))
+        cum[-1] = 1.0
+        self._cum = cum
+        return self
+
+    # ---------------------------------------------------------------- shell selection (the shells are already fixed)
+    def _select_shells(self, u):
+        idx = np.minimum(np.searchsorted(self._cum, u, side="right"), self._M - 1)
         return idx + 1                                    # shell numbers are 1-based, as in the paper
+
+    # ---------------------------------------------------------------- violation handling
+    def _violation(self, i, detail, shortfall):
+        """Record a violation of P >= p_hat Q; ``shortfall`` = (p_hat - a) / p_hat >= 0 (or inf for a bound violation).
+
+        Raises when on_violation == 'raise' and the shortfall exceeds ``violation_tol`` (0 in rigorous mode)."""
+        self._violations += 1
+        self._max_shortfall = max(self._max_shortfall, float(shortfall))
+        if self.on_violation == "raise" and shortfall > self.violation_tol:
+            raise MinorizationViolationError(
+                f"minorization violated on shell {i} ({detail}; relative shortfall {shortfall:.3g} > violation_tol = "
+                f"{self.violation_tol:g}); mode = {self.mode!r}: the bounds are invalid, so the perfect-sampling guarantee "
+                "does not hold. Supply valid bounds, increase n_mc or eta (monte_carlo mode), or use "
+                "on_violation='count' to only count violations (no guarantee)")
+
+    def _check_range(self, i, lp):
+        """rigorous mode: every density value must lie inside the supplied bounds."""
+        sh = self._shells[i - 1]
+        tol = 1e-9 * (1.0 + abs(sh["log_S"]))
+        if lp.min() < sh["log_s"] - tol or lp.max() > sh["log_S"] + tol:
+            self._violation(i, f"log density {lp.min():.6g}..{lp.max():.6g} outside the bounds "
+                               f"[{sh['log_s']:.6g}, {sh['log_S']:.6g}]", np.inf)
 
     # ---------------------------------------------------------------- perfect sampling on one shell
     def _perfect_sample_shell(self, i, n, rng):
@@ -257,6 +381,8 @@ class EllipsoidalSampler:
                 f"(p_hat = {p:.3g})")
         theta = self.partition.sample_uniform(i, n, rng)             # theta^(-T) ~ Q_i
         lp = self._eval(theta)
+        if self.mode == "rigorous" and n:
+            self._check_range(i, lp)
         order = np.argsort(-T, kind="stable")
         neg_T_sorted = -T[order]
         for step in range(int(T.max()) if n else 0):                 # T residual steps, only for rows that need them
@@ -264,12 +390,16 @@ class EllipsoidalSampler:
             rows = order[:n_act]
             prop = self.partition.sample_uniform(i, n_act, rng)
             lp_prop = self._eval(prop)
-            with np.errstate(invalid="ignore"):
-                log_a = np.minimum(0.0, lp_prop - lp[rows])
+            if self.mode == "rigorous":
+                self._check_range(i, lp_prop)
             if not np.all(np.isfinite(lp[rows])):
                 raise SamplerInfeasibleError("a chain state has zero density; check log_density and the bounds")
-            a = np.exp(log_a)
-            self._violations += int(np.sum(a < p - 1e-12))
+            with np.errstate(invalid="ignore"):
+                a = np.exp(np.minimum(0.0, lp_prop - lp[rows]))
+            bad = a < p - 1e-12
+            if bad.any():
+                worst = float(a[bad].min())
+                self._violation(i, f"acceptance ratio {worst:.6g} < p_hat = {p:.6g}", (p - worst) / p)
             u = rng.uniform(p, 1.0, n_act)                           # conditioning on "no regeneration": U >= p
             move = u < a
             theta[rows[move]], lp[rows[move]] = prop[move], lp_prop[move]
@@ -293,24 +423,37 @@ class EllipsoidalSampler:
         return out
 
     def sample(self, n, rng):
-        """n i.i.d. draws from pi_hat (paper sec. 4.3); returns an (n, d) array."""
+        """n draws, i.i.d. conditional on the prepared state, from pi_hat_M (paper sec. 4.3); returns an (n, d) array.
+
+        The first call prepares the shells (``prepare``) before any uniform is used for the returned draws.
+        """
         n = _check_int(n, "n", 1)
         if not isinstance(rng, np.random.Generator):
             raise ValueError("rng must be a numpy.random.Generator")
-        shells = self._select_shells(rng.uniform(size=n), rng)
-        return self.sample_from_shells(shells, rng)
+        self.prepare(rng)
+        return self.sample_from_shells(self._select_shells(rng.uniform(size=n)), rng)
 
     @property
     def diagnostics(self):
         M = min(self._M, len(self._shells))
+        w = self._weights(M) if M else np.array([])
+        cv = np.array([s["cv"] for s in self._shells[:M]])
         return dict(
+            mode=self.mode,
+            perfect_sampling_guaranteed=self.mode == "rigorous",     # needs valid bounds; a violation raises
             n_shells=self._M,
+            shells_fixed=self.n_shells_fixed is not None,
             p_hat=np.array([s["p_hat"] for s in self._shells[:M]]),
-            last_shell_weight=float(self._weights(M)[-1]) if M else float("nan"),
+            last_shell_weight=float(w[-1]) if M else float("nan"),
+            omitted_mass_bound=self._coverage.get("omitted_mass_bound"),
+            omitted_mass_estimate=self._coverage.get("omitted_mass_estimate"),
+            tail_bound_rigorous=self.log_tail_bound is not None,
+            tv_weight_error_estimate=float(0.5 * np.sum(w * cv) / np.sqrt(self.n_mc)) if M else float("nan"),
             n_draws=self._draws,
             mean_coalescence_steps=self._steps_total / self._draws if self._draws else float("nan"),
             max_coalescence_steps=self._steps_max,
             n_residual_steps=self._residual_steps,
             n_minorization_violations=self._violations,
+            max_violation_shortfall=self._max_shortfall,
             shell_counts=dict(sorted(self._shell_counts.items())),
         )

@@ -6,6 +6,7 @@ lets tests separate "the algorithm is right" from "the Monte Carlo bounds are sl
 """
 import numpy as np
 from scipy.linalg import cho_factor, cho_solve, solve_triangular
+from scipy.stats import chi2
 
 
 def gaussian_log_density(mean, cov):
@@ -48,3 +49,29 @@ def gaussian_shell_log_bounds(partition, mean, cov):
         return -0.5 * q_max, -0.5 * q_min
 
     return log_bounds
+
+
+def gaussian_log_tail_bound(partition, mean, cov):
+    """Callable M -> log of a RIGOROUS upper bound on the integral of exp(-q/2) outside the first M shells.
+
+    Outside the ellipsoid of radius rho_M the target's Mahalanobis distance satisfies sqrt(q) >= sqrt(beta_min) rho_M - delta
+    (same notation as gaussian_shell_log_bounds), so the omitted mass is at most (2 pi)^(d/2) |cov|^(1/2) P(chi2_d >= t^2)
+    with t = max(0, sqrt(beta_min) rho_M - delta). Exact up to the triangle inequality, which is tight when the target's
+    covariance is proportional to the partition's.
+    """
+    mean = np.atleast_1d(np.asarray(mean, dtype=float))
+    cov = np.atleast_2d(np.asarray(cov, dtype=float))
+    d = cov.shape[0]
+    L = partition.chol
+    precision = cho_solve(cho_factor(cov, lower=True), np.eye(d))
+    B = L.T @ precision @ L
+    beta_min = float(np.linalg.eigvalsh(0.5 * (B + B.T))[0])
+    w = solve_triangular(L, mean - partition.mean, lower=True)
+    delta = float(np.sqrt(max(w @ B @ w, 0.0)))
+    log_norm = 0.5 * d * np.log(2 * np.pi) + 0.5 * np.linalg.slogdet(cov)[1]
+
+    def log_tail_bound(M):
+        t = max(0.0, np.sqrt(beta_min) * partition.radius(M) - delta)
+        return float(log_norm + chi2.logsf(t * t, d))
+
+    return log_tail_bound
